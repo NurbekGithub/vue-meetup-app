@@ -53,22 +53,37 @@ export const store = new Vuex.Store({
           }
         )
     },
-    createMeetup ({commit}, payload) {
+    createMeetup ({commit, getters}, payload) {
       const meetup = {
         title: payload.title,
         location: payload.location,
-        imageURL: payload.imageURL,
         description: payload.description,
-        date: payload.date.toISOString()
+        date: payload.date.toISOString(),
+        creatorId: getters.getUser.id
       }
+      let imageURL, key
       firebase.database().ref('meetups').push(meetup)
         .then(data => {
-          const key = data.key
+          key = data.key
+          return key
+        })
+        .then(key => {
+          const filename = payload.image.name
+          const ext = filename.slice(filename.lastIndexOf('.'))
+          return firebase.storage().ref(`meetups/${key}.${ext}`).put(payload.image)
+        })
+        .then(fileData => {
+          imageURL = fileData.metadata.downloadURLs[0]
+          return firebase.database().ref('meetups').child(key).update({imageURL})
+        })
+        .then(() => {
           commit('createMeetup', {
             ...meetup,
-            key
+            imageURL,
+            id: key
           })
         }).catch(err => {
+          firebase.database().ref('meetups').child(key).remove()
           console.log(err)
         })
     },
@@ -89,7 +104,6 @@ export const store = new Vuex.Store({
           err => {
             commit('setLoading', false)
             commit('setError', err)
-            console.log(err)
           }
         )
     },
@@ -110,9 +124,15 @@ export const store = new Vuex.Store({
           err => {
             commit('setLoading', false)
             commit('setError', err)
-            console.log(err)
           }
         )
+    },
+    autoSignin ({commit}, payload) {
+      commit('setUser', {id: payload.uid, registeredMeetups: []})
+    },
+    logout ({commit}) {
+      firebase.auth().signOut()
+      commit('setUser', null)
     },
     clearError ({commit}) {
       commit('clearError')

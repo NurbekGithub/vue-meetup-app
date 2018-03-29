@@ -34,14 +34,15 @@
           </v-layout>
           <v-layout row>
             <v-flex xs12 sm6 offset-sm3>
-              <v-text-field
-                name='imageURL'
-                label='Image'
-                id='imageURL'
-                v-model="imageURL"
+              <v-btn raised class="primary" @click="onPickFile">Upload Image</v-btn>
+              <input 
+                type="file" 
+                hidden 
+                ref="fileInput" 
+                accept="image/*" 
+                @change="onFileUploadChanged"
                 required
               >
-              </v-text-field>
             </v-flex>
           </v-layout>
           <v-layout row>
@@ -64,7 +65,7 @@
           </v-layout>
           <v-layout row>
             <v-flex xs12 sm6 offset-sm3>
-              <h4>Choose a Data & Time</h4>
+              <h4>Choose a Data &amp; Time</h4>
             </v-flex>
           </v-layout>
           <v-layout row class="mb-2">
@@ -103,7 +104,8 @@ export default {
       imageURL: '',
       description: '',
       date: '2018-03-20',
-      time: new Date()
+      time: new Date(),
+      image: null
     }
   },
   computed: {
@@ -132,15 +134,39 @@ export default {
       if (!this.formIsValid) {
         return
       }
+      if (!this.image) {
+        return
+      }
       const meetupData = {
         title: this.title,
         location: this.location,
-        imageURL: this.imageURL,
+        image: this.image,
         description: this.description,
         date: this.submittableDateTime
       }
       this.$store.dispatch('createMeetup', meetupData)
       this.$router.push('/meetups')
+    },
+    onPickFile () {
+      this.$refs.fileInput.click()
+    },
+    onFileUploadChanged (event) {
+      const files = event.target.files
+      if (files.length > 0) {
+        let filename = files[0].name
+        if (filename.lastIndexOf('.') <= 0) {
+          return alert('Please add a valid file')
+        }
+        const fileReader = new FileReader()
+        fileReader.addEventListener('load', () => {
+          this.imageURL = fileReader.result
+        })
+        fileReader.readAsDataURL(files[0])
+        this.image = files[0]
+      } else {
+        this.imageURL = ''
+        this.image = null
+      }
     }
   }
 }
