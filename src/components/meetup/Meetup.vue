@@ -33,7 +33,7 @@
             {{ meetup.description }}
           </v-card-text>
           <v-card-actions class='justify-end'>
-            <confirm-registration-dialog meetupId='meetup.id'/>
+            <confirm-registration-dialog :meetupId="meetup.id" v-if="userIsAuthentocated && !userIsCreater"/>
           </v-card-actions>
         </v-card>
       </v-flex>

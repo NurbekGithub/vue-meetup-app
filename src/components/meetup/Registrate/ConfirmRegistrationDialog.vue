@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model='registerDialog' width="450px">
-    <v-btn accent slot='activator' secondary>
+    <v-btn class="primary" accent slot='activator'>
       {{ userIsRegistred ? 'Unregister' : 'Register' }}
     </v-btn>
     <v-card>
@@ -47,7 +47,11 @@ export default {
   },
   methods: {
     onRegister () {
-
+      if (this.userIsRegistred) {
+        this.$store.dispatch('unregisterUserFromMeetup', this.meetupId)
+      } else {
+        this.$store.dispatch('registerUserForMeetup', this.meetupId)
+      }
     }
   }
 }

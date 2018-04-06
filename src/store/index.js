@@ -12,6 +12,21 @@ export const store = new Vuex.Store({
     error: null
   },
   mutations: {
+    registerUserForMeetup (state, payload) {
+      const id = payload.id
+      if (state.user.registeredMeetups.includes(id)) {
+        return
+      }
+      state.user.registeredMeetups.push(id)
+      state.user.mrKeys[id] = payload.mrKey
+    },
+    unregisterUserFromMeetup (state, payload) {
+      const registeredMeetups = state.user.registeredMeetups
+      if (registeredMeetups.includes(payload)) {
+        registeredMeetups.splice(registeredMeetups.findIndex(meetup => meetup === payload), 1)
+      }
+      Reflect.deleteProperty(state.user.mrKeys, payload)
+    },
     createMeetup (state, payload) {
       state.loadedMeetups.push(payload)
     },
@@ -108,7 +123,8 @@ export const store = new Vuex.Store({
             commit('setLoading', false)
             const newUser = {
               id: user.uid,
-              registeredMeetups: []
+              registeredMeetups: [],
+              mrKeys: {}
             }
             commit('setUser', newUser)
           }
@@ -128,7 +144,8 @@ export const store = new Vuex.Store({
             commit('setLoading', false)
             const newUser = {
               id: user.uid,
-              registeredMeetups: []
+              registeredMeetups: [],
+              mrKeys: {}
             }
             commit('setUser', newUser)
           }
@@ -140,7 +157,12 @@ export const store = new Vuex.Store({
         )
     },
     autoSignin ({commit}, payload) {
-      commit('setUser', {id: payload.uid, registeredMeetups: []})
+      commit('setUser',
+        {
+          id: payload.uid,
+          registeredMeetups: [],
+          mrKeys: {}
+        })
     },
     logout ({commit}) {
       firebase.auth().signOut()
@@ -169,6 +191,63 @@ export const store = new Vuex.Store({
         .catch(err => {
           commit('setLoading', false)
           commit('setError', err)
+        })
+    },
+    registerUserForMeetup ({commit, getters}, payload) {
+      commit('setLoading', true)
+      const currUser = getters.getUser
+      firebase.database().ref(`/users/${currUser.id}`).child('/registrations/')
+        .push(payload)
+        .then(data => {
+          commit('setLoading', false)
+          commit('registerUserForMeetup', {id: payload, mrKey: data.key})
+        })
+        .catch(err => {
+          console.log(err)
+          commit('setError', err)
+          commit('setLoading', false)
+        })
+    },
+    unregisterUserFromMeetup ({commit, getters}, payload) {
+      commit('setLoading', true)
+      const user = getters.getUser
+      if (!user.mrKeys) {
+        return
+      }
+      const mrKey = user.mrKeys[payload]
+      firebase.database().ref(`/users/${user.id}/registrations/`).child(mrKey)
+        .remove()
+        .then(() => {
+          commit('setLoading', false)
+          commit('unregisterUserFromMeetup', payload)
+        })
+        .catch(err => {
+          console.log(err)
+          commit('setLoading', false)
+        })
+    },
+    fetchUserRegistraions ({commit, getters}) {
+      commit('setLoading', true)
+      firebase.database().ref(`/users/${getters.getUser.id}/registrations`).once('value')
+        .then(data => {
+          const dataPairs = data.val()
+          let registeredMeetups = []
+          let mrKeys = {}
+          for (let [mrKey, meetupId] of Object.entries(dataPairs)) {
+            mrKeys[meetupId] = mrKey
+            registeredMeetups.push(meetupId)
+          }
+          let updatedUser = {
+            ...getters.getUser,
+            registeredMeetups,
+            mrKeys
+          }
+          commit('setUser', updatedUser)
+          commit('setLoading', false)
+        })
+        .catch(err => {
+          console.log(err)
+          commit('setLoading', false)
         })
     }
   },
